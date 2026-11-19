@@ -48,6 +48,15 @@ MARK = "[iteration-budget]"
 _INJECT_TAG = "[ib:wire]"
 SETTINGS_PATH = "plugins.entries.iteration-budget.settings"
 
+# Wrap-up template injected at the final/exhausted phases — the help lands exactly when the
+# budget is tight, the moment the model is most likely to truncate badly. Skills can't do this:
+# they load by description-relevance up front, not on a mid-turn budget event.
+_WRAPUP = (
+    "Structure it: DONE (what you accomplished), VERIFIED (what you confirmed vs. what is "
+    "assumed or untested), LEFT (what remains and the single exact next step), RESUME (the "
+    "paths, IDs, commands and state needed to continue). Start no new work and do not re-explore."
+)
+
 #: Hermes' own defaults, mirrored so the plugin reports the cap the agent actually gets.
 _HERMES_DELEGATION_DEFAULT = 250
 
@@ -271,14 +280,12 @@ def _status(used: int, cap: Optional[int]) -> Optional[tuple[str, str]]:
     ratio = used / cap
     if remaining <= 0:
         return ("exhausted",
-                f"{MARK} iteration budget SPENT ({used}/{cap}) — no iterations left, Hermes "
-                "will not run another tool round this turn. Write the final answer now: what "
-                "is done, what is verified, what is still open, with exact paths/IDs.")
+                f"{MARK} iteration budget SPENT ({used}/{cap}) — Hermes will run no more tool "
+                f"rounds this turn. Write the final answer now, no more tool calls. {_WRAPUP}")
     if ratio >= _ratio("final_ratio"):
         return ("final",
-                f"{MARK} {used}/{cap} iterations used, {remaining} left. WRAP UP NOW: answer "
-                "from what you already have; take no further tool calls unless one is "
-                "essential to the deliverable.")
+                f"{MARK} {used}/{cap} iterations used, {remaining} left. WRAP UP NOW: answer from "
+                f"what you already have; no further tool calls unless one is essential. {_WRAPUP}")
     if ratio >= _ratio("urgent_ratio"):
         return ("urgent",
                 f"{MARK} {used}/{cap} used, {remaining} left. Close the step in flight and "
