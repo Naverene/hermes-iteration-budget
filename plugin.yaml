@@ -1,0 +1,67 @@
+name: iteration-budget
+version: 1.0.1
+kind: standalone
+description: "Surface the per-turn iteration budget to the model so it wraps up before the cap"
+entry: __init__.py
+requires_hermes: ">=0.23.2"
+
+provides_hooks:
+  - pre_llm_call
+  - pre_api_request
+  - post_tool_call
+  - pre_tool_call
+  - subagent_start
+  - on_session_reset
+
+# `llm_request` is request middleware (hermes_cli.middleware.VALID_MIDDLEWARE), not a hook:
+# it rewrites the outbound API payload, which is how the budget line reaches the model.
+provides_middleware:
+  - llm_request
+
+provides_commands:
+  - budget
+
+# Read from plugins.entries.iteration-budget.settings.<key> (legacy `config` subtree also honored).
+config_schema:
+  max_iterations:
+    type: integer
+    description: "Main-agent per-turn iteration cap. Absent or null follows Hermes' own cap (agent.max_turns / HERMES_MAX_ITERATIONS); the string 'unlimited' silences the plugin."
+  child_max_iterations:
+    type: integer
+    description: "Per-turn cap for delegate_task children. Absent or null follows delegation.max_iterations (Hermes default 250)."
+  warn_ratio:
+    type: float
+    description: "Fraction of the cap where the notice becomes a warning (default 0.70)."
+  urgent_ratio:
+    type: float
+    description: "Fraction of the cap where wrapping up becomes urgent (default 0.85)."
+  final_ratio:
+    type: float
+    description: "Fraction of the cap reserved for the final answer-only round (default 0.94)."
+  heartbeat_every:
+    type: integer
+    description: "Emit a plain count line every N iterations while still in the roomy zone; 0 disables."
+  turn_framing:
+    type: boolean
+    description: "State the cap once per turn (pre_llm_call user note)."
+  inject:
+    type: boolean
+    description: "Inject the running budget line into the outbound request payload."
+  inject_wire_modes:
+    type: list
+    description: "Wire shapes injection is applied to (default chat_completions, anthropic_messages)."
+  inject_codex_input:
+    type: boolean
+    description: "Also inject into the codex_responses transcript shape (off by default)."
+  enforce:
+    type: boolean
+    description: "Block new tool calls once the cap is spent (default false: the model self-regulates and core hard-stops)."
+  enforce_margin:
+    type: integer
+    description: "Iterations kept spare for the final answer when enforce is on."
+  max_enforce_blocks:
+    type: integer
+    description: "Stop refusing tool calls after N blocks so core can finish the turn."
+  log:
+    type: boolean
+    description: "Log phase milestones to agent.log (visible with -v)."
